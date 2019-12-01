@@ -12,9 +12,9 @@ def get_img_arr(filepath, out_dims):
     return image, K.variable(preprocess_input(np.expand_dims(img_arr, axis=0)), dtype='float32')
 
 # define paths to content, style, output images
-C_PATH = 'rhodes.jpg'       # content image
-S_PATH = 'kandinsky.jpg'    # style image
-O_PATH = 'results/out.jpg'  # output image
+C_PATH = 'images/content/rhodes.jpg'    # content image
+S_PATH = 'images/style/kandinsky.jpg'   # style image
+O_PATH = 'images/results/out.jpg'       # output image
 
 # optionally get content img, style img from command line
 if len(sys.argv) == 3:
@@ -34,4 +34,5 @@ s_img, s_img_arr = get_img_arr(S_PATH, OUT_DIMS)
 o_img_arr = np.random.randint(256, size=(OUT_WIDTH, OUT_HEIGHT, 3)).astype('float64')
 o_img_arr = preprocess_input(np.expand_dims(o_img_arr, axis=0))
 o_img0 = K.placeholder(shape=(1, OUT_WIDTH, OUT_HEIGHT, 3))
+
 
