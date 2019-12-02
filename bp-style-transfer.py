@@ -18,7 +18,7 @@ O_PATH = 'images/results/out.jpg'       # output image
 
 # optionally get content img, style img from command line
 if len(sys.argv) == 3:
-    C_PATH = argv[1]
+    C_PATH = sys.argv[1]
     S_PATH = argv[2]
 
 # Output image dimensions
@@ -36,3 +36,8 @@ o_img_arr = preprocess_input(np.expand_dims(o_img_arr, axis=0))
 o_img0 = K.placeholder(shape=(1, OUT_WIDTH, OUT_HEIGHT, 3))
 
 
+def main():
+    pass
+
+if __name__== "__main__":
+    main()
