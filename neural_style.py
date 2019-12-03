@@ -460,16 +460,15 @@ def get_image_savename(block, iteration):
 
   out_dir += str(args.max_size)
   if args.optimizer == 'adam':
-    out_dir += 'A'
-    out_dir += '('+str(args.learning_rate)+','+str(args.beta1)+','+str(args.beta2) \
-                +','+str(args.epsilon)+')'
+    out_dir += 'A' + '('+str(args.learning_rate)+','+str(args.beta1)+',' \
+                +str(args.beta2)+','+str(args.epsilon)+')'
   else:
     out_dir += 'LBFGS'
   if args.blocks != 1:
     out_dir += str(args.blocks) + 'x'
   out_dir += str(args.max_iterations)
   # store intermediary images in 'iters' subfolder
-  if block < args.blocks or iteration < args.max_iterations:
+  if block < args.blocks:
     out_dir = os.path.join(out_dir, 'iters')
   maybe_make_directory(out_dir)
 
