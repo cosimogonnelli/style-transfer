@@ -468,7 +468,7 @@ def get_image_savename(block, iteration):
 
 def write_image_output(output_img, content_img, style_imgs):
   out_dir, img_path = get_image_savename(args.blocks, args.max_iterations)
-  content_path = os.path.join(out_dir, '0_content.png')
+  content_path = os.path.join(out_dir, '0content.png')
 
   write_image(img_path, output_img)
   write_image(content_path, content_img)
