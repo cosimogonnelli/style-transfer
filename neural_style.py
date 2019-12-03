@@ -103,6 +103,18 @@ def parse_args():
     default=1e1, 
     help='Learning rate parameter for the Adam optimizer. (default: %(default)s)')
   
+  parser.add_argument('--beta1', type=float, 
+    default=0.9, 
+    help='First momentum parameter for the Adam optimizer. (default: %(default)s)')
+
+  parser.add_argument('--beta1', type=float, 
+    default=0.999, 
+    help='Second momentum parameter for the Adam optimizer. (default: %(default)s)')
+  
+  parser.add_argument('--epsilon', type=float, 
+    default=1e-8, 
+    help='Numerical stability constant for the Adam optimizer. (default: %(default)s)')
+  
   parser.add_argument('--blocks', type=int, 
     default=1,
     # note: interupting BFGS training into blocks to save output makes it go slower
@@ -436,7 +448,7 @@ def get_optimizer(loss):
       options={'maxiter': args.max_iterations,
                   'disp': print_iterations})
   elif args.optimizer == 'adam':
-    optimizer = tf.train.AdamOptimizer(args.learning_rate)
+    optimizer = tf.train.AdamOptimizer(args.learning_rate, args.beta1, args.beta2, args.epsilon)
   return optimizer
 
 def get_image_savename(block, iteration):
@@ -467,7 +479,7 @@ def get_image_savename(block, iteration):
   return out_dir, img_path
 
 def write_image_output(output_img, content_img, style_imgs):
-  out_dir, img_path = get_image_savename(args.blocks, args.max_iterations)
+  out_dir, img_path = get_image_savename(args.blocks, 0)
   content_path = os.path.join(out_dir, '0content.png')
 
   write_image(img_path, output_img)
