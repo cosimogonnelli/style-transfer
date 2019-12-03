@@ -460,7 +460,9 @@ def get_image_savename(block, iteration):
 
   out_dir += str(args.max_size)
   if args.optimizer == 'adam':
-    out_dir += 'A('+str(args.learning_rate)+')'
+    out_dir += 'A'
+    out_dir += '('str(args.learning_rate)+','str(args.beta1)+','+str(args.beta2)
+                +','+str(args.epsilon)+')'
   else:
     out_dir += 'LBFGS'
   if args.blocks != 1:
