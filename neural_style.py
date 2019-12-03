@@ -107,7 +107,7 @@ def parse_args():
     default=0.9, 
     help='First momentum parameter for the Adam optimizer. (default: %(default)s)')
 
-  parser.add_argument('--beta1', type=float, 
+  parser.add_argument('--beta2', type=float, 
     default=0.999, 
     help='Second momentum parameter for the Adam optimizer. (default: %(default)s)')
   
@@ -461,7 +461,7 @@ def get_image_savename(block, iteration):
   out_dir += str(args.max_size)
   if args.optimizer == 'adam':
     out_dir += 'A'
-    out_dir += '('str(args.learning_rate)+','str(args.beta1)+','+str(args.beta2)
+    out_dir += '('+str(args.learning_rate)+','+str(args.beta1)+','+str(args.beta2) \
                 +','+str(args.epsilon)+')'
   else:
     out_dir += 'LBFGS'
