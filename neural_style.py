@@ -381,16 +381,29 @@ def stylize(content_img, style_imgs, init_img, frame=None):
     # optimization algorithm
     optimizer = get_optimizer(L_total)
 
+
+    # remember start time for optimization process
+    global time_start
+    time_start = time.time()
+    loss_vec = []
+    time_vec = []
+
     if args.optimizer == 'adam':
       minimize_with_adam(sess, net, optimizer, init_img, L_total)
     elif args.optimizer == 'lbfgs':
-      minimize_with_lbfgs(sess, net, optimizer, init_img)
+      minimize_with_lbfgs(sess, net, optimizer, init_img, L_total)
     
     output_img = sess.run(net['input'])
-    
+
     write_image_output(output_img, content_img, style_imgs)
 
-def minimize_with_lbfgs(sess, net, optimizer, init_img):
+def append_loss(loss):
+  f = loss.eval()
+  time_end = time.time()
+  loss_vec.append(f)
+  time_vec.append(time_end - time_start)
+
+def minimize_with_lbfgs(sess, net, optimizer, init_img, loss):
   if args.verbose: print('\nMINIMIZING LOSS USING: L-BFGS OPTIMIZER')
   init_op = tf.global_variables_initializer()
   sess.run(init_op)
@@ -398,7 +411,7 @@ def minimize_with_lbfgs(sess, net, optimizer, init_img):
   block = 0
   while block < args.blocks:
     if args.verbose: print('\nBLOCK {}'.format(block))
-    optimizer.minimize(sess)
+    optimizer.minimize(sess, loss_callback=append_loss, fetchs=[loss])
     output_img = sess.run(net['input'])
     out_dir, img_path = get_image_savename(block, args.max_iterations)
     write_image(img_path, output_img)
@@ -416,6 +429,7 @@ def minimize_with_adam(sess, net, optimizer, init_img, loss):
     iteration = 0
     while (iteration < args.max_iterations):
       sess.run(train_op)
+      append_loss(loss)
       # print output and save intermediary images
       if iteration % args.print_iterations == 0 and args.verbose:
         curr_loss = loss.eval()
@@ -539,15 +553,20 @@ def render_image():
     print('\n---- RENDERING IMAGE ----\n')
     init_img = content_img # could replace with style img or noise
     tick = time.time()
-    stylize(content_img, style_imgs, init_img)
+    loss_vec, time_vec = stylize(content_img, style_imgs, init_img)
     tock = time.time()
     print('Elapsed time: {}'.format(tock - tick))
+    return loss_vec, time_vec
 
 def main():
   tf.logging.set_verbosity(tf.logging.ERROR) # quiet TF errors
   global args
   args = parse_args()
-  render_image()
+  loss_vec, time_vec = render_image()
+  # print or graph vectors
+  ####
+  print(loss_vec)
+  print(time_vec)
 
 if __name__ == '__main__':
   main()
