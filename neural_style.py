@@ -563,7 +563,16 @@ def main():
   global args
   args = parse_args()
   global loss_vec, time_vec
-  render_image()
+  if args.optimizer != 'both'
+    render_image()
+  else:
+    args.optimizer = 'adam'
+    render_image()
+    # add adam loss_vec and time_vec to plot
+    args.optimizer = 'lbfgs'
+    render_image()
+    # add lbfgs loss_vec and time_vec to plot
+
   # print or graph vectors
   ####
   print('loss: ', loss_vec)
