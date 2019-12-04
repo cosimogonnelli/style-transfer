@@ -10,6 +10,7 @@ import time
 import cv2
 import os
 from pathlib import Path
+from memory_profiler import memory_usage
 
 # Modified from https://github.com/cysmith/neural-style-tf
 
@@ -133,6 +134,9 @@ def parse_args():
 
   parser.add_argument('--save_iters', action='store_true',
     help='Boolean flag indicating whether to save intermediary output images')
+
+  parser.add_argument('--mem', action='store_true',
+    help='Boolean flag indicating whether to profile memory usage')
 
   args = parser.parse_args()
 
@@ -395,14 +399,20 @@ def stylize(content_img, style_imgs, init_img, frame=None):
 
 
     # vectors to save losses and times at each iteration
-    global loss_vec, time_vec, time_start
+    global loss_vec, time_vec, mem_vec, time_start # (init time start in minimize_with_*)
     loss_vec = []
     time_vec = []
 
     if args.optimizer == 'adam':
-      minimize_with_adam(sess, net, optimizer, init_img, L_total)
+      if args.mem:
+        mem_vec = memory_usage(proc=(minimize_with_adam, (sess, net, optimizer, init_img, L_total)), interval=1)
+      else:
+        minimize_with_adam(sess, net, optimizer, init_img, L_total)
     elif args.optimizer == 'lbfgs':
-      minimize_with_lbfgs(sess, net, optimizer, init_img, L_total)
+      if args.mem:
+        mem_vec = memory_usage(proc=(minimize_with_lbfgs, (sess, net, optimizer, init_img, L_total)), interval=1)
+      else:
+        minimize_with_lbfgs(sess, net, optimizer, init_img, L_total)
     
     output_img = sess.run(net['input'])
 
@@ -582,7 +592,7 @@ def render_image():
     tock = time.time()
     if args.verbose: print('Elapsed time: {}'.format(tock - tick))
 
-def plot_graph(a_time, a_loss, l_time, l_loss, path):
+def plot_loss(a_time, a_loss, l_time, l_loss, path):
   if a_loss != None:
     plt.plot(a_time, a_loss, label='Adam')
   if l_loss != None:
@@ -594,22 +604,43 @@ def plot_graph(a_time, a_loss, l_time, l_loss, path):
       +str(args.blocks * args.max_iterations)+' Iterations')
   plt.legend()
   plt.savefig(path)
+  plt.clf()
+
+def plot_mem(a_mem, l_mem, path):
+  if a_mem != None:
+    plt.plot(a_mem, label='Adam')
+  if l_mem != None:
+    plt.plot(l_mem, label='L-BFGS')
+  plt.xlabel('Time (seconds)')
+  plt.ylabel('Memory Usage (MiB)')
+  plt.title('Image Size '+str(args.max_size)+', ' \
+      +str(args.blocks * args.max_iterations)+' Iterations')
+  plt.legend()
+  plt.savefig(path)
+  plt.clf()
 
 def main():
   tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR) # quiet TF errors
   global args
   args = parse_args()
-  global loss_vec, time_vec # store losses and time for each iteration
+  # store losses and time for each iteration, record memory usage of loss minimization function
+  global loss_vec, time_vec, mem_vec 
 
   if args.optimizer == 'adam':
     render_image()
     out_dir, img_path = get_image_savename(args.blocks, 'graph')
-    plot_graph(time_vec, loss_vec, None, None, img_path)
+    plot_loss(time_vec, loss_vec, None, None, img_path)
+    if args.mem:
+      mem_path = os.path.join(out_dir, 'mem_graph.png')
+      plot_mem(mem_vec, None, mem_path)
 
   elif args.optimizer == 'lbfgs':
     render_image()
     out_dir, img_path = get_image_savename(args.blocks, 'graph')
-    plot_graph(None, None, time_vec, loss_vec, img_path)
+    plot_loss(None, None, time_vec, loss_vec, img_path)
+    if args.mem:
+      mem_path = os.path.join(out_dir, 'mem_graph.png')
+      plot_mem(None, mem_vec, mem_path)
 
   elif args.optimizer == 'both':
     both_dir, img_path = get_image_savename(args.blocks, 'graph')
@@ -617,20 +648,25 @@ def main():
     args.optimizer = 'adam'
     adam_dir, _ = get_image_savename(args.blocks, 0)
     render_image()
-    a_loss, a_time = loss_vec, time_vec
+    a_loss, a_time, a_mem = loss_vec, time_vec, mem_vec
     #print('losses:', len(loss_vec), loss_vec)
     #print('times:', len(time_vec), time_vec)
+    print('mem:', mem_vec)
     # generate data for lbfgs
     args.optimizer = 'lbfgs'
     lbfgs_dir, _ = get_image_savename(args.blocks, 0)
     render_image()
-    l_loss, l_time = loss_vec, time_vec
+    l_loss, l_time, l_mem = loss_vec, time_vec, mem_vec
     #print('losses:', len(loss_vec), loss_vec)
     #print('times:', len(time_vec), time_vec)
+    print('mem:', mem_vec)
     # generate graph, copy output to both_dir
     shutil.rmtree(both_dir)  # clear old experiments with same name
     maybe_make_directory(both_dir)
-    plot_graph(a_time, a_loss, l_time, l_loss, img_path)
+    plot_loss(a_time, a_loss, l_time, l_loss, img_path)
+    if args.mem:
+      mem_path = os.path.join(both_dir, 'mem_graph.png')
+      plot_mem(a_mem, l_mem, mem_path)
     shutil.move(adam_dir, os.path.join(both_dir, Path(adam_dir).relative_to(args.img_output_dir)))
     shutil.move(lbfgs_dir, os.path.join(both_dir, Path(lbfgs_dir).relative_to(args.img_output_dir)))
 
