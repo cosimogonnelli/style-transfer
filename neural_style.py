@@ -651,7 +651,7 @@ def main():
     a_loss, a_time, a_mem = loss_vec, time_vec, mem_vec
     #print('losses:', len(loss_vec), loss_vec)
     #print('times:', len(time_vec), time_vec)
-    print('mem:', mem_vec)
+    #print('mem:', mem_vec)
     # generate data for lbfgs
     args.optimizer = 'lbfgs'
     lbfgs_dir, _ = get_image_savename(args.blocks, 0)
@@ -659,7 +659,7 @@ def main():
     l_loss, l_time, l_mem = loss_vec, time_vec, mem_vec
     #print('losses:', len(loss_vec), loss_vec)
     #print('times:', len(time_vec), time_vec)
-    print('mem:', mem_vec)
+    #print('mem:', mem_vec)
     # generate graph, copy output to both_dir
     shutil.rmtree(both_dir)  # clear old experiments with same name
     maybe_make_directory(both_dir)
