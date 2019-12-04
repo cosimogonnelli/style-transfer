@@ -1,7 +1,9 @@
 import tensorflow as tf
 import numpy as np 
+import matplotlib.pyplot as plt
 import scipy.io  
 import argparse 
+import shutil
 import struct
 import errno
 import time                       
@@ -96,7 +98,7 @@ def parse_args():
   # optimizations
   parser.add_argument('--optimizer', type=str, 
     default='lbfgs',
-    choices=['lbfgs', 'adam'],
+    choices=['lbfgs', 'adam', 'both'],
     help='Loss minimization optimizer.  L-BFGS gives better results.  Adam uses less memory. (default|recommended: %(default)s)')
   
   parser.add_argument('--learning_rate', type=float, 
@@ -430,10 +432,10 @@ def minimize_with_adam(sess, net, optimizer, init_img, loss):
     iteration = 0
     while (iteration < args.max_iterations):
       sess.run(train_op)
-      append_loss(loss)
+      curr_loss = loss.eval()
+      append_loss(curr_loss)
       # print output and save intermediary images
       if iteration % args.print_iterations == 0 and args.verbose:
-        curr_loss = loss.eval()
         print("At iterate {}\tf=  {}".format(iteration, curr_loss))
         output_img = sess.run(net['input'])
         out_dir, img_path = get_image_savename(block, iteration)
@@ -463,8 +465,10 @@ def get_image_savename(block, iteration):
   if args.optimizer == 'adam':
     out_dir += 'A' + '('+str(args.learning_rate)+','+str(args.beta1)+',' \
                 +str(args.beta2)+','+str(args.epsilon)+')'
-  else:
+  elif args.optimizer == 'lbfgs':
     out_dir += 'LBFGS'
+  elif args.optimizer == 'both':
+    out_dir += 'BOTH'
   if args.blocks != 1:
     out_dir += str(args.blocks) + 'x'
   out_dir += str(args.max_iterations)
@@ -558,25 +562,49 @@ def render_image():
     tock = time.time()
     print('Elapsed time: {}'.format(tock - tick))
 
+def plot_graph(a_time, a_loss, l_time, l_loss, path):
+  if a_loss != None:
+    plt.plot(a_time, a_loss, label='Adam')
+  if l_loss != None:
+    plt.plot(l_time, l_loss, label='L-BFGS')
+  plt.xlabel('Time (seconds)')
+  plt.ylabel('Loss')
+  plt.title('Loss with image size ' + str(args.max_size))
+  plt.legend()
+  plt.savefig(path)
+
 def main():
-  tf.logging.set_verbosity(tf.logging.ERROR) # quiet TF errors
+  tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR) # quiet TF errors
   global args
   args = parse_args()
-  global loss_vec, time_vec
-  if args.optimizer != 'both'
-    render_image()
-  else:
-    args.optimizer = 'adam'
-    render_image()
-    # add adam loss_vec and time_vec to plot
-    args.optimizer = 'lbfgs'
-    render_image()
-    # add lbfgs loss_vec and time_vec to plot
+  global loss_vec, time_vec # store losses and time for each iteration
 
-  # print or graph vectors
-  ####
-  print('loss: ', loss_vec)
-  print('time:', time_vec)
+  if args.optimizer == 'adam':
+    render_image()
+    out_dir, img_path = get_image_savename(args.blocks, 'graph')
+    plot_graph(time_vec, loss_vec, None, None, img_path)
+
+  elif args.optimizer == 'lbfgs':
+    render_image()
+    out_dir, img_path = get_image_savename(args.blocks, 'graph')
+    plot_graph(None, None, time_vec, loss_vec, img_path)
+
+  elif args.optimizer == 'both':
+    both_dir, img_path = get_image_savename(args.blocks, 'graph')
+    # Generate data for adam optimizer
+    args.optimizer = 'adam'
+    adam_dir, _ = get_image_savename(args.blocks, 0)
+    render_image()
+    a_loss, a_time = loss_vec, time_vec
+    # generate data for lbfgs
+    args.optimizer = 'lbfgs'
+    lbfgs_dir, _ = get_image_savename(args.blocks, 0)
+    render_image()
+    l_loss, l_time = loss_vec, time_vec
+    # generate graph, copy output to both_dir
+    plot_graph(a_time, a_loss, l_time, l_loss, img_path)
+    shutil.move(adam_dir, os.path.join(both_dir, adam_dir))
+    shutil.move(lbfgs_dir, os.path.join(both_dir, lbfgs_dir))
 
 if __name__ == '__main__':
   main()
