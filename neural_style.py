@@ -103,11 +103,11 @@ def parse_args():
     help='Loss minimization optimizer.  L-BFGS gives better results.  Adam uses less memory. (default|recommended: %(default)s)')
   
   parser.add_argument('--learning_rate', type=float, 
-    default=1e1, 
+    default=1e1, # original default 1e0
     help='Learning rate parameter for the Adam optimizer. (default: %(default)s)')
   
   parser.add_argument('--beta1', type=float, 
-    default=0.9, 
+    default=0.99, # original default 0.9
     help='First momentum parameter for the Adam optimizer. (default: %(default)s)')
 
   parser.add_argument('--beta2', type=float, 
@@ -115,7 +115,7 @@ def parse_args():
     help='Second momentum parameter for the Adam optimizer. (default: %(default)s)')
   
   parser.add_argument('--epsilon', type=float, 
-    default=1e-8, 
+    default=1e-1, # original default 1e-8
     help='Numerical stability constant for the Adam optimizer. (default: %(default)s)')
   
   parser.add_argument('--blocks', type=int, 
@@ -128,8 +128,11 @@ def parse_args():
     help='Max number of iterations per block for the optimizer. (default: %(default)s)')
 
   parser.add_argument('--print_iterations', type=int, 
-    default=50,
+    default=10,
     help='Number of iterations between optimizer print statements (and Adam image output). (default: %(default)s)')
+
+  parser.add_argument('--save_iters', action='store_true',
+    help='Boolean flag indicating whether to save intermediary output images')
 
   args = parser.parse_args()
 
@@ -159,7 +162,7 @@ def build_model(input_img):
   if args.verbose: print('constructing layers...')
   net['input']   = tf.Variable(np.zeros((1, h, w, d), dtype=np.float32))
 
-  if args.verbose: print('LAYER GROUP 1')
+  #if args.verbose: print('LAYER GROUP 1')
   net['conv1_1'] = conv_layer('conv1_1', net['input'], W=get_weights(vgg_layers, 0))
   net['relu1_1'] = relu_layer('relu1_1', net['conv1_1'], b=get_bias(vgg_layers, 0))
 
@@ -168,7 +171,7 @@ def build_model(input_img):
   
   net['pool1']   = pool_layer('pool1', net['relu1_2'])
 
-  if args.verbose: print('LAYER GROUP 2')  
+  #if args.verbose: print('LAYER GROUP 2')  
   net['conv2_1'] = conv_layer('conv2_1', net['pool1'], W=get_weights(vgg_layers, 5))
   net['relu2_1'] = relu_layer('relu2_1', net['conv2_1'], b=get_bias(vgg_layers, 5))
   
@@ -177,7 +180,7 @@ def build_model(input_img):
   
   net['pool2']   = pool_layer('pool2', net['relu2_2'])
   
-  if args.verbose: print('LAYER GROUP 3')
+  #if args.verbose: print('LAYER GROUP 3')
   net['conv3_1'] = conv_layer('conv3_1', net['pool2'], W=get_weights(vgg_layers, 10))
   net['relu3_1'] = relu_layer('relu3_1', net['conv3_1'], b=get_bias(vgg_layers, 10))
 
@@ -192,7 +195,7 @@ def build_model(input_img):
 
   net['pool3']   = pool_layer('pool3', net['relu3_4'])
 
-  if args.verbose: print('LAYER GROUP 4')
+  #if args.verbose: print('LAYER GROUP 4')
   net['conv4_1'] = conv_layer('conv4_1', net['pool3'], W=get_weights(vgg_layers, 19))
   net['relu4_1'] = relu_layer('relu4_1', net['conv4_1'], b=get_bias(vgg_layers, 19))
 
@@ -207,7 +210,7 @@ def build_model(input_img):
 
   net['pool4']   = pool_layer('pool4', net['relu4_4'])
 
-  if args.verbose: print('LAYER GROUP 5')
+  #if args.verbose: print('LAYER GROUP 5')
   net['conv5_1'] = conv_layer('conv5_1', net['pool4'], W=get_weights(vgg_layers, 28))
   net['relu5_1'] = relu_layer('relu5_1', net['conv5_1'], b=get_bias(vgg_layers, 28))
 
@@ -226,22 +229,28 @@ def build_model(input_img):
 
 def conv_layer(layer_name, layer_input, W):
   conv = tf.nn.conv2d(layer_input, W, strides=[1, 1, 1, 1], padding='SAME')
+  '''
   if args.verbose: print('--{} | shape={} | weights_shape={}'.format(layer_name, 
     conv.get_shape(), W.get_shape()))
+  '''
   return conv
 
 def relu_layer(layer_name, layer_input, b):
   relu = tf.nn.relu(layer_input + b)
+  '''
   if args.verbose: 
     print('--{} | shape={} | bias_shape={}'.format(layer_name, relu.get_shape(), 
       b.get_shape()))
+  '''
   return relu
 
 def pool_layer(layer_name, layer_input):
   pool = tf.nn.avg_pool(layer_input, ksize=[1, 2, 2, 1], # could also do a max pool
     strides=[1, 2, 2, 1], padding='SAME')
+  '''
   if args.verbose: 
     print('--{}   | shape={}'.format(layer_name, pool.get_shape()))
+  '''
   return pool
 
 def get_weights(vgg_layers, i):
@@ -385,9 +394,8 @@ def stylize(content_img, style_imgs, init_img, frame=None):
     optimizer = get_optimizer(L_total)
 
 
-    # remember start time for optimization process, save losses and times at each iteration
+    # vectors to save losses and times at each iteration
     global loss_vec, time_vec, time_start
-    time_start = time.time()
     loss_vec = []
     time_vec = []
 
@@ -403,7 +411,7 @@ def stylize(content_img, style_imgs, init_img, frame=None):
 def append_loss(loss):
   f = loss[0]
   time_end = time.time()
-  global loss_vec, time_vec
+  global loss_vec, time_vec, time_start
   loss_vec.append(f)
   time_vec.append(time_end - time_start)
 
@@ -413,12 +421,15 @@ def minimize_with_lbfgs(sess, net, optimizer, init_img, loss):
   sess.run(init_op)
   sess.run(net['input'].assign(init_img))
   block = 0
+  global time_start
+  time_start = time.time()
   while block < args.blocks:
     if args.verbose: print('\nBLOCK {}'.format(block))
     optimizer.minimize(sess, loss_callback=append_loss, fetches=[loss])
-    output_img = sess.run(net['input'])
-    out_dir, img_path = get_image_savename(block, args.max_iterations)
-    write_image(img_path, output_img)
+    if args.save_iters:
+      output_img = sess.run(net['input'])
+      out_dir, img_path = get_image_savename(block, args.max_iterations)
+      write_image(img_path, output_img)
     block += 1
 
 def minimize_with_adam(sess, net, optimizer, init_img, loss):
@@ -428,6 +439,9 @@ def minimize_with_adam(sess, net, optimizer, init_img, loss):
   sess.run(init_op)
   sess.run(net['input'].assign(init_img))
   block = 0
+  global time_start
+  time_start = time.time()
+  append_loss(loss.eval()) # record initial loss
   while block < args.blocks:
     if args.verbose: print('\nBLOCK {}'.format(block))
     iteration = 0
@@ -436,11 +450,13 @@ def minimize_with_adam(sess, net, optimizer, init_img, loss):
       curr_loss = loss.eval()
       append_loss(curr_loss)
       # print output and save intermediary images
-      if iteration % args.print_iterations == 0 and args.verbose:
-        print("At iterate {}\tf=  {}".format(iteration, curr_loss))
-        output_img = sess.run(net['input'])
-        out_dir, img_path = get_image_savename(block, iteration)
-        write_image(img_path, output_img)
+      if iteration % args.print_iterations == 0:
+        if args.verbose: 
+          print("At iterate {}\tf=  {}".format(iteration, curr_loss))
+        if args.save_iters:
+          output_img = sess.run(net['input'])
+          out_dir, img_path = get_image_savename(block, iteration)
+          write_image(img_path, output_img)
       iteration += 1
     block += 1
 
@@ -559,12 +575,12 @@ def render_image():
   content_img = get_content_image(args.content_img)
   style_imgs = get_style_images(content_img)
   with tf.Graph().as_default():
-    print('\n---- RENDERING IMAGE ----\n')
+    if args.verbose: print('\n---- RENDERING IMAGE ----\n')
     init_img = content_img # could replace with style img or noise
     tick = time.time()
     stylize(content_img, style_imgs, init_img)
     tock = time.time()
-    print('Elapsed time: {}'.format(tock - tick))
+    if args.verbose: print('Elapsed time: {}'.format(tock - tick))
 
 def plot_graph(a_time, a_loss, l_time, l_loss, path):
   if a_loss != None:
@@ -573,7 +589,9 @@ def plot_graph(a_time, a_loss, l_time, l_loss, path):
     plt.plot(l_time, l_loss, label='L-BFGS')
   plt.xlabel('Time (seconds)')
   plt.ylabel('Loss')
-  plt.title('Loss with image size ' + str(args.max_size))
+  plt.yscale('log')
+  plt.title('Image Size '+str(args.max_size)+', ' \
+      +str(args.blocks * args.max_iterations)+' Iterations')
   plt.legend()
   plt.savefig(path)
 
@@ -600,12 +618,18 @@ def main():
     adam_dir, _ = get_image_savename(args.blocks, 0)
     render_image()
     a_loss, a_time = loss_vec, time_vec
+    #print('losses:', len(loss_vec), loss_vec)
+    #print('times:', len(time_vec), time_vec)
     # generate data for lbfgs
     args.optimizer = 'lbfgs'
     lbfgs_dir, _ = get_image_savename(args.blocks, 0)
     render_image()
     l_loss, l_time = loss_vec, time_vec
+    #print('losses:', len(loss_vec), loss_vec)
+    #print('times:', len(time_vec), time_vec)
     # generate graph, copy output to both_dir
+    shutil.rmtree(both_dir)  # clear old experiments with same name
+    maybe_make_directory(both_dir)
     plot_graph(a_time, a_loss, l_time, l_loss, img_path)
     shutil.move(adam_dir, os.path.join(both_dir, Path(adam_dir).relative_to(args.img_output_dir)))
     shutil.move(lbfgs_dir, os.path.join(both_dir, Path(lbfgs_dir).relative_to(args.img_output_dir)))
