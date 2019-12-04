@@ -85,7 +85,7 @@ def parse_args():
     help='Weights and biases of the VGG-19 network.')
   
   parser.add_argument('--device', type=str, 
-    default='/gpu:0',
+    default='/cpu:0',
     choices=['/gpu:0', '/cpu:0'],
     help='GPU or CPU mode.  GPU mode requires NVIDIA CUDA. (default|recommended: %(default)s)')
   
@@ -336,20 +336,6 @@ def postprocess(img):
   # rgb to bgr
   imgpost = imgpost[...,::-1]
   return imgpost
-
-def read_weights_file(path):
-  lines = open(path).readlines()
-  header = list(map(int, lines[0].split(' ')))
-  w = header[0]
-  h = header[1]
-  vals = np.zeros((h, w), dtype=np.float32)
-  for i in range(1, len(lines)):
-    line = lines[i].rstrip().split(' ')
-    vals[i-1] = np.array(list(map(np.float32, line)))
-    vals[i-1] = list(map(lambda x: 0. if x < 255. else 1., vals[i-1]))
-  # expand to 3 channels
-  weights = np.dstack([vals.astype(np.float32)] * 3)
-  return weights
 
 def normalize(weights):
   denom = sum(weights)
