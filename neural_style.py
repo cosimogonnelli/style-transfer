@@ -382,8 +382,8 @@ def stylize(content_img, style_imgs, init_img, frame=None):
     optimizer = get_optimizer(L_total)
 
 
-    # remember start time for optimization process
-    global time_start
+    # remember start time for optimization process, save losses and times at each iteration
+    global loss_vec, time_vec, time_start
     time_start = time.time()
     loss_vec = []
     time_vec = []
@@ -398,8 +398,9 @@ def stylize(content_img, style_imgs, init_img, frame=None):
     write_image_output(output_img, content_img, style_imgs)
 
 def append_loss(loss):
-  f = loss.eval()
+  f = loss[0]
   time_end = time.time()
+  global loss_vec, time_vec
   loss_vec.append(f)
   time_vec.append(time_end - time_start)
 
@@ -411,7 +412,7 @@ def minimize_with_lbfgs(sess, net, optimizer, init_img, loss):
   block = 0
   while block < args.blocks:
     if args.verbose: print('\nBLOCK {}'.format(block))
-    optimizer.minimize(sess, loss_callback=append_loss, fetchs=[loss])
+    optimizer.minimize(sess, loss_callback=append_loss, fetches=[loss])
     output_img = sess.run(net['input'])
     out_dir, img_path = get_image_savename(block, args.max_iterations)
     write_image(img_path, output_img)
@@ -553,20 +554,20 @@ def render_image():
     print('\n---- RENDERING IMAGE ----\n')
     init_img = content_img # could replace with style img or noise
     tick = time.time()
-    loss_vec, time_vec = stylize(content_img, style_imgs, init_img)
+    stylize(content_img, style_imgs, init_img)
     tock = time.time()
     print('Elapsed time: {}'.format(tock - tick))
-    return loss_vec, time_vec
 
 def main():
   tf.logging.set_verbosity(tf.logging.ERROR) # quiet TF errors
   global args
   args = parse_args()
-  loss_vec, time_vec = render_image()
+  global loss_vec, time_vec
+  render_image()
   # print or graph vectors
   ####
-  print(loss_vec)
-  print(time_vec)
+  print('loss: ', loss_vec)
+  print('time:', time_vec)
 
 if __name__ == '__main__':
   main()
