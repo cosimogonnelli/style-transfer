@@ -9,6 +9,7 @@ import errno
 import time                       
 import cv2
 import os
+from pathlib import Path
 
 # Modified from https://github.com/cysmith/neural-style-tf
 
@@ -480,7 +481,10 @@ def get_image_savename(block, iteration):
   if args.img_name != None:
     img_path = os.path.join(out_dir, args.img_name)
   else:
-    img_path = os.path.join(out_dir, str(block)+'.'+str(iteration)+'.png')
+    if iteration != 'graph':
+      img_path = os.path.join(out_dir, str(block)+'.'+str(iteration)+'.png')
+    else:
+      img_path = os.path.join(out_dir, 'graph.png')
 
   return out_dir, img_path
 
@@ -603,8 +607,8 @@ def main():
     l_loss, l_time = loss_vec, time_vec
     # generate graph, copy output to both_dir
     plot_graph(a_time, a_loss, l_time, l_loss, img_path)
-    shutil.move(adam_dir, os.path.join(both_dir, adam_dir))
-    shutil.move(lbfgs_dir, os.path.join(both_dir, lbfgs_dir))
+    shutil.move(adam_dir, os.path.join(both_dir, Path(adam_dir).relative_to(args.img_output_dir)))
+    shutil.move(lbfgs_dir, os.path.join(both_dir, Path(lbfgs_dir).relative_to(args.img_output_dir)))
 
 if __name__ == '__main__':
   main()
