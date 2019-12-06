@@ -1,3 +1,3 @@
 imagenet-vgg-verydeep-19.mat
 image_input/
-image_output/
+#image_output/
