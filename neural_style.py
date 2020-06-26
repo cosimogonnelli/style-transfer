@@ -15,6 +15,8 @@ from memory_profiler import memory_usage
 # Modified from https://github.com/cysmith/neural-style-tf
 
 '''
+  USE: tensor flow 1.15
+
   parsing and configuration
 
   python3 neural_style.py --optimizer both --mem --verbose --style_imgs kandinsky.jpg --content_img hawaii.jpg --max_iterations 1000 --max_size 1024
